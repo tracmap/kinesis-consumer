@@ -23,11 +23,11 @@ func New(streamName string, opts ...Option) (*Consumer, error) {
 		return nil, fmt.Errorf("must provide stream name")
 	}
 
-	// new consumer with no-op checkpoint, counter, and logger
+	// new consumer with noop storage, counter, and logger
 	c := &Consumer{
 		streamName:               streamName,
 		initialShardIteratorType: kinesis.ShardIteratorTypeLatest,
-		checkpoint:               &noopCheckpoint{},
+		storage:                  &noopStorage{},
 		counter:                  &noopCounter{},
 		logger: &noopLogger{
 			logger: log.New(ioutil.Discard, "", log.LstdFlags),
@@ -57,14 +57,13 @@ type Consumer struct {
 	initialShardIteratorType string
 	client                   kinesisiface.KinesisAPI
 	logger                   Logger
-	checkpoint               Checkpoint
+	storage                  Storage
 	counter                  Counter
 }
 
 // ScanFunc is the type of the function called for each message read
 // from the stream. The record argument contains the original record
 // returned from the AWS Kinesis library.
-//
 // If an error is returned, scanning stops. The sole exception is when the
 // function returns the special value SkipCheckpoint.
 type ScanFunc func(*Record) error
@@ -118,7 +117,7 @@ func (c *Consumer) Scan(ctx context.Context, fn ScanFunc) error {
 // for each record and checkpoints the progress of scan.
 func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn ScanFunc) error {
 	// get last seq number from checkpoint
-	lastSeqNum, err := c.checkpoint.Get(c.streamName, shardID)
+	lastSeqNum, err := c.storage.GetCheckpoint(c.streamName, shardID)
 	if err != nil {
 		return fmt.Errorf("get checkpoint error: %v", err)
 	}
@@ -164,7 +163,7 @@ func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn ScanFunc) e
 					}
 
 					if err != SkipCheckpoint {
-						if err := c.checkpoint.Set(c.streamName, shardID, *r.SequenceNumber); err != nil {
+						if err := c.storage.SetCheckpoint(c.streamName, shardID, *r.SequenceNumber); err != nil {
 							return err
 						}
 					}
