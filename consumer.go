@@ -206,3 +206,7 @@ func (c *Consumer) getShardIterator(streamName, shardID, seqNum string) (*string
 	res, err := c.client.GetShardIterator(params)
 	return res.ShardIterator, err
 }
+
+func (c *Consumer) GetCheckpoint() *Checkpoint {
+	return &c.checkpoint
+}
