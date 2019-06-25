@@ -210,3 +210,10 @@ func (c *Consumer) getShardIterator(streamName, shardID, seqNum string) (*string
 func (c *Consumer) GetCheckpoint() *Checkpoint {
 	return &c.checkpoint
 }
+
+func (c *Consumer) SetCheckpoint(shardID, sequenceNumber string) error {
+	if err := c.group.SetCheckpoint(c.streamName, shardID, sequenceNumber); err != nil {
+		return err
+	}
+	return nil
+}
