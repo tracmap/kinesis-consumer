@@ -14,7 +14,10 @@ import (
 )
 
 // Record is an alias of record returned from kinesis library
-type Record = kinesis.Record
+type Record struct {
+	kinesis.Record
+	ShardId string
+}
 
 // New creates a kinesis consumer with default settings. Use Option to override
 // any of the optional attributes.
@@ -160,7 +163,8 @@ func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn ScanFunc) e
 				case <-ctx.Done():
 					return nil
 				default:
-					err := fn(r)
+					wrapped := Record { Record: *r, ShardId: shardID }
+					err := fn(&wrapped)
 					if err != nil && err != SkipCheckpoint {
 						return err
 					}
